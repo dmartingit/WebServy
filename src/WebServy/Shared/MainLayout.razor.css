@@ -1,0 +1,25 @@
+.page {
+    position: relative;
+    display: flex;
+    flex-direction: row;
+}
+
+.main {
+    flex: 1;
+}
+
+.main > div {
+    padding-left: 2rem !important;
+    padding-right: 1.5rem !important;
+}
+
+.sidebar {
+    background-image: linear-gradient(180deg, #222 0%, #111 70%);
+    width: 100px;
+    height: 100vh;
+    position: sticky;
+    top: 0;
+    white-space: nowrap;
+    overflow-x: hidden;
+    text-overflow: ellipsis;
+}

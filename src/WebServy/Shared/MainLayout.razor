@@ -1,0 +1,37 @@
+﻿@inherits LayoutComponentBase
+@using WebServy.Data
+@inject AppState AppState
+@inject NavigationManager NavigationManager
+
+<div class="page">
+    <div class="sidebar">
+        <NavMenu />
+    </div>
+
+    <div class="main" hidden="@(AppState.Config.LastUsedWebServiceUuid.Value is not null)">
+        <div class="content px-4">
+            @Body
+        </div>
+    </div>
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        if (AppState.Config.LastUsedWebServiceUuid.Value is not null)
+        {
+            NavigationManager.NavigateTo($"service/{AppState.Config.LastUsedWebServiceUuid.Value}");
+        }
+        AppState.Config.LastUsedWebServiceUuid.Changed += (_, e) =>
+        {
+            if (e.Value is not null)
+            {
+                NavigationManager.NavigateTo($"service/{e.Value}");
+            }
+            else
+            {
+                StateHasChanged();
+            }
+        };
+    }
+}

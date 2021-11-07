@@ -1,0 +1,71 @@
+﻿@page "/"
+@using WebServy.Data
+@inject AppState AppState
+
+<h1>WebServy</h1>
+<div class="container">
+    <h2>Add</h2>
+    <EditForm Model="@webService" OnValidSubmit="@Add">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="input-group">
+            <InputText class="form-control" placeholder="Service Name" aria-label="ServiceName" aria-describedby="addButton" @bind-Value="webService.Name" />
+            <InputText class="form-control" placeholder="Service Url" aria-label="Url" aria-describedby="addButton" @bind-Value="webService.Url" />
+            <button class="btn btn-outline-secondary" type="submit" id="addButton">Add</button>
+        </div>
+    </EditForm>
+</div>
+
+<div class="container">
+    <h2>Remove</h2>
+    <ul class="list-group">
+        @foreach (WebService webService in AppState.Config.WebServices)
+        {
+            <li class="list-group-item">
+                <input class="form-check-input" type="checkbox" value="" checked="@selectedWebServices.Contains(webService.Uuid)" @onchange="e => ToggleWebService(webService, (bool)e.Value!)">
+                @webService.Name
+            </li>
+        }
+    </ul>
+    <button class="btn btn-outline-secondary" hidden="@(selectedWebServices.Count == 0)" @onclick="RemoveSelectedWebServices">Remove</button>
+</div>
+
+@code {
+    private WebService webService = new();
+    private HashSet<string> selectedWebServices = new();
+
+    private void Add()
+    {
+        AppState.Config.WebServices.Add(webService);
+        AppState.Config.LastUsedWebServiceUuid.Value = webService.Uuid;
+        webService = new();
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        AppState.Config.LastUsedWebServiceUuid.Value = null;
+    }
+
+    private void RemoveSelectedWebServices()
+    {
+        foreach (string uuid in selectedWebServices)
+        {
+            WebService selectedWebService = AppState.Config.WebServices.Single(ws => ws.Uuid == uuid);
+            AppState.Config.WebServices.Remove(selectedWebService);
+        }
+        selectedWebServices.Clear();
+    }
+
+    private void ToggleWebService(WebService webService, bool state)
+    {
+        if (state)
+        {
+            selectedWebServices.Add(webService.Uuid);
+        }
+        else
+        {
+            selectedWebServices.Remove(webService.Uuid);
+        }
+    }
+}
