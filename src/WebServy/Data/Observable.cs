@@ -1,6 +1,6 @@
 ﻿namespace WebServy.Data;
 
-public sealed class Observable<T> where T : IComparable
+public sealed class Observable<T>
 {
     private T? value;
 
@@ -16,7 +16,7 @@ public sealed class Observable<T> where T : IComparable
         set
         {
             this.value = value;
-            Changed?.Invoke(this, new() { Value = value });
+            Changed.Invoke(this, new() { Value = value });
         }
     }
 

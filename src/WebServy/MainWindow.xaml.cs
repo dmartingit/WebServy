@@ -1,8 +1,12 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Toolkit.Uwp.Notifications;
 using Microsoft.Web.WebView2.Wpf;
 using System.Collections.Specialized;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Windows;
 using WebServy.Data;
+using WebServy.Services;
 
 namespace WebServy;
 
@@ -18,36 +22,96 @@ public partial class MainWindow : Window
             AddWebView(webService);
         }
 
-        appState.Config.WebServices.CollectionChanged += (_, e) => UpdateWebViews(e);
-        appState.Config.LastUsedWebServiceUuid.Changed += (_, e) => UpdateLayout(e.Value);
-
         var serviceCollection = new ServiceCollection();
         serviceCollection.AddBlazorWebView();
         serviceCollection.AddSingleton(appState);
         Resources.Add("services", serviceCollection.BuildServiceProvider());
 
         InitializeComponent();
-
-        UpdateLayout(appState.Config.LastUsedWebServiceUuid.Value);
-
     }
 
-    private void UpdateWebViews(NotifyCollectionChangedEventArgs e)
+    protected override void OnSourceInitialized(EventArgs e)
     {
-        if (e.OldItems is not null)
+        if (appState.Config.WindowPlacement.Value is WindowPlacement windowPlacement)
         {
-            foreach (WebService webService in e.OldItems)
-            {
-                webViews.Remove(webService.Uuid);
-            }
+            Top = windowPlacement.Top;
+            Left = windowPlacement.Left;
+            Height = windowPlacement.Height;
+            Width = windowPlacement.Width;
+            if (windowPlacement.IsMaximized) WindowState = WindowState.Maximized;
         }
-        if (e.NewItems is not null)
+
+        appState.Config.WebServices.CollectionChanged += (_, e) => UpdateWebViews(e);
+        appState.Config.LastUsedWebServiceUuid.Changed += (_, e) => UpdateLayout(e.Value);
+        ToastNotificationManagerCompat.OnActivated += ToastNotificationManagerCompatOnActivated;
+        UpdateLayout(appState.Config.LastUsedWebServiceUuid.Value);
+        base.OnSourceInitialized(e);
+    }
+
+    private void AddWebView(WebService webService)
+    {
+        WebView2 webView = new();
+        webView.Source = new(webService.Url);
+
+        // NOTE(dmartin): Prevent flashing when switching services, because most web services have a defaulted dark theme.
+        webView.DefaultBackgroundColor = System.Drawing.Color.FromArgb(0xff, 0x22, 0x22, 0x22);
+
+        webView.CoreWebView2InitializationCompleted += (_, _) =>
         {
-            foreach (WebService webService in e.NewItems)
+            if (appState.Services.FirstOrDefault(service => webService.Url.Contains(service.DomainName)) is IService service)
             {
-                AddWebView(webService);
+                webView.CoreWebView2.DOMContentLoaded += async (_, _) => await webView.ExecuteScriptAsync(service.NotificationJavascriptHook);
+                webView.CoreWebView2.WebMessageReceived += (_, e) => new ToastContentBuilder().AddArgument(webService.Uuid).AddText($"{webService.Name}: You have {e.TryGetWebMessageAsString()} unread messages.").Show();
             }
+
+            // NOTE(dmartin): Currently Notification Permission Requests are auto-rejected and no event is raised:
+            // https://github.com/MicrosoftEdge/WebView2Feedback/issues/308
+            // https://docs.microsoft.com/en-us/dotnet/api/microsoft.web.webview2.core.corewebview2permissionkind?view=webview2-dotnet-1.0.864.35#fields
+            webView.CoreWebView2.PermissionRequested += (_, e) =>
+            {
+                if (e.PermissionKind == Microsoft.Web.WebView2.Core.CoreWebView2PermissionKind.Notifications)
+                {
+                    e.State = Microsoft.Web.WebView2.Core.CoreWebView2PermissionState.Allow;
+                }
+            };
+
+            webView.CoreWebView2.ProcessFailed += (_, e) => webView.Reload();
+            webView.CoreWebView2.NewWindowRequested += (_, e) => e.Handled = OpenUrl(e.Uri);
+        };
+
+        webViews.Add(webService.Uuid, webView);
+    }
+
+    private bool OpenUrl(string url)
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            url = url.Replace("&", "^&");
+            Process.Start(new ProcessStartInfo("cmd", $"/c start {url}") { CreateNoWindow = true });
         }
+        else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        {
+            Process.Start("xdg-open", url);
+        }
+        else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            Process.Start("open", url);
+        }
+        else
+        {
+            return false;
+        }
+        return true;
+    }
+
+    private void ToastNotificationManagerCompatOnActivated(ToastNotificationActivatedEventArgsCompat e)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            appState.Config.LastUsedWebServiceUuid.Value = e.Argument;
+            Activate();
+        });
+        ToastNotificationManagerCompat.History.Clear();
     }
 
     private void UpdateLayout(string? webServiceUuid)
@@ -74,25 +138,51 @@ public partial class MainWindow : Window
         }
     }
 
-    private void AddWebView(WebService webService)
+    private void UpdateWebViews(NotifyCollectionChangedEventArgs e)
     {
-        WebView2 webView = new();
-        webView.Source = new(webService.Url);
-        // NOTE(dmartin): Currently Notification Permission Requests are currently auto-rejected and no event is raised:
-        // https://github.com/MicrosoftEdge/WebView2Feedback/issues/308
-        webView.CoreWebView2InitializationCompleted += (_, _) =>
+        if (e.OldItems is not null)
         {
-            webView.CoreWebView2.PermissionRequested += (_, e) =>
+            foreach (WebService webService in e.OldItems)
             {
-                if (e.PermissionKind == Microsoft.Web.WebView2.Core.CoreWebView2PermissionKind.Notifications)
-                {
-                    e.State = Microsoft.Web.WebView2.Core.CoreWebView2PermissionState.Allow;
-                }
+                webViews.Remove(webService.Uuid);
+            }
+        }
+
+        if (e.NewItems is not null)
+        {
+            foreach (WebService webService in e.NewItems)
+            {
+                AddWebView(webService);
+            }
+        }
+    }
+
+    private void WindowClosing(object sender, System.ComponentModel.CancelEventArgs e)
+    {
+        if (WindowState == WindowState.Maximized)
+        {
+            appState.Config.WindowPlacement.Value = new()
+            {
+                Top = RestoreBounds.Top,
+                Left = RestoreBounds.Left,
+                Height = RestoreBounds.Height,
+                Width = RestoreBounds.Width,
+                IsMaximized = true
             };
-        };
-        webViews.Add(webService.Uuid, webView);
+        }
+        else
+        {
+            appState.Config.WindowPlacement.Value = new()
+            {
+                Top = Top,
+                Left = Left,
+                Height = Height,
+                Width = Width,
+                IsMaximized = false
+            };
+        }
     }
 }
 
-// NOTE(dmartin): WPF's runtime build cannot find the type 'local:Main'" so declare it again.
+// NOTE(dmartin): WPF's runtime build cannot find the type 'local:Main' so make sure it knows atleast something.
 public partial class Main { }

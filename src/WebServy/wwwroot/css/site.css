@@ -6,14 +6,55 @@ a, .btn-link {
     color: #0366d6;
 }
 
+.bg-dark {
+    background-color: #222 !important;
+}
+
+.text-dark {
+    color: #495057 !important;
+}
+
+.text-light {
+    color: #fcfcfc !important;
+}
+
 .btn-primary {
     color: #fff;
     background-color: #1b6ec2;
     border-color: #1861ac;
 }
 
+.card {
+    background-color: transparent;
+    border-color: #fcfcfc;
+}
+
 .content {
     padding-top: 1.1rem;
+}
+
+.input-group {
+    background-color: #222;
+    color: #fcfcfc;
+}
+
+.input-group-text {
+    background-color: transparent;
+}
+
+.form-control {
+    background-color: #222;
+    color: #fcfcfc;
+}
+
+    .form-control:focus {
+        background-color: #222;
+        color: #fcfcfc;
+    }
+
+.list-group-item {
+    background-color: transparent;
+    border-color: #fcfcfc;
 }
 
 .valid.modified:not([type=checkbox]) {

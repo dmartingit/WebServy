@@ -1,13 +1,1 @@
-﻿@page "/service/{Uuid}"
-@using WebServy.Data
-@inject AppState AppState
-
-@code {
-    [Parameter]
-    public string Uuid { get; set; } = string.Empty;
-
-    protected override void OnAfterRender(bool firstRender)
-    {
-        AppState.Config.LastUsedWebServiceUuid.Value = Uuid;
-    }
-}
+﻿

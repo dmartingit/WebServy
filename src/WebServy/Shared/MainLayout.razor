@@ -3,12 +3,15 @@
 @inject AppState AppState
 @inject NavigationManager NavigationManager
 
-<div class="page">
+<div class="page bg-dark text-light">
     <div class="sidebar">
         <NavMenu />
     </div>
 
     <div class="main" hidden="@(AppState.Config.LastUsedWebServiceUuid.Value is not null)">
+        <nav class="navbar navbar-dark bg-dark" hidden="@(NavigationManager.ToBaseRelativePath(NavigationManager.Uri) == string.Empty)">
+            <NavLink class="navbar-brand" href="/">Back</NavLink>
+        </nav>
         <div class="content px-4">
             @Body
         </div>
@@ -30,7 +33,7 @@
             }
             else
             {
-                StateHasChanged();
+                NavigationManager.NavigateTo("/");
             }
         };
     }

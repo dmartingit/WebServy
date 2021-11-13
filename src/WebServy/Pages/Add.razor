@@ -1,0 +1,31 @@
+﻿@page "/add"
+@using WebServy.Data
+@inject AppState AppState
+
+<div class="container">
+    <h1>Add</h1>
+    <EditForm Model="@webService" OnValidSubmit="@AddWebService">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="input-group">
+            <InputText class="form-control" placeholder="Service Name*" @bind-Value="webService.Name" />
+            <InputText class="form-control" placeholder="Service Url*" @bind-Value="webService.Url" />
+            <InputText class="form-control" placeholder="Service Icon Url" @bind-Value="webService.IconUrl" />
+            <div class="input-group-append">
+                <button class="btn btn-success" type="submit">Add</button>
+            </div>
+        </div>
+    </EditForm>
+</div>
+
+@code {
+    private WebService webService = new();
+
+    private void AddWebService()
+    {
+        AppState.Config.WebServices.Add(webService);
+        AppState.Config.LastUsedWebServiceUuid.Value = webService.Uuid;
+        webService = new();
+    }
+}

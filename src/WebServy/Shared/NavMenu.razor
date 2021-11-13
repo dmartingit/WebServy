@@ -2,21 +2,29 @@
 @inject AppState AppState
 
 <ul class="nav flex-column">
-    <li class="nav-item px-2">
-        <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-            Home
-        </NavLink>
+    <li class="nav-item text-center">
+        <NavLinkPreventDefault class="nav-link" href="" Match="NavLinkMatch.All" @onclick="() => UpdateLastUsedWebServiceUuid(null)">
+            <img src="img/logo.svg" width="30" height="30" alt="" hidden="@(AppState.Config.UseIconNavBar.Value == false)">
+            <span hidden="@AppState.Config.UseIconNavBar.Value">Home</span>
+        </NavLinkPreventDefault>
     </li>
     @foreach (WebService webService in AppState.Config.WebServices)
     {
-        <li class="nav-item px-2">
-            <NavLink class="nav-link" href="@($"service/{webService.Uuid}")">
-                @webService.Name
-            </NavLink>
+        <li class="nav-item text-center">
+            <NavLinkPreventDefault class="nav-link" href="@($"service/{webService.Uuid}")" @onclick="() => UpdateLastUsedWebServiceUuid(webService)">
+                <img src="@(webService.IconUrl == string.Empty ? "img/logo.svg" : webService.IconUrl)" width="30" height="30" alt="" hidden="@(AppState.Config.UseIconNavBar.Value == false)">
+                <span hidden="@AppState.Config.UseIconNavBar.Value">@webService.Name</span>
+            </NavLinkPreventDefault>
         </li>
     }
 </ul>
 
 @code {
-    protected override void OnInitialized() => AppState.Config.WebServices.CollectionChanged += (_, _) => StateHasChanged();
+    protected override void OnInitialized()
+    {
+        AppState.Config.WebServices.CollectionChanged += (_, _) => StateHasChanged();
+        AppState.Config.UseIconNavBar.Changed += (_, _) => StateHasChanged();
+    }
+
+    private void UpdateLastUsedWebServiceUuid(WebService? webService) => AppState.Config.LastUsedWebServiceUuid.Value = webService?.Uuid;
 }

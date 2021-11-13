@@ -14,12 +14,16 @@ public sealed class Config
         this.filepath = filepath;
 
         Load();
-        WebServices.CollectionChanged += (_, _) => Save();
         LastUsedWebServiceUuid.Changed += (_, _) => Save();
+        UseIconNavBar.Changed += (_, _) => Save();
+        WebServices.CollectionChanged += (_, _) => Save();
+        WindowPlacement.Changed += (_, _) => Save();
     }
 
-    public ObservableCollection<WebService> WebServices { get; set; } = new();
     public Observable<string> LastUsedWebServiceUuid { get; set; } = new();
+    public Observable<bool> UseIconNavBar { get; set;} = new();
+    public ObservableCollection<WebService> WebServices { get; set; } = new();
+    public Observable<WindowPlacement> WindowPlacement { get; set; } = new(new());
 
     public void Load()
     {
@@ -29,12 +33,15 @@ public sealed class Config
             string json = reader.ReadToEnd();
             Data data = JsonSerializer.Deserialize(json, ConfigJsonContext.Default.Data)!;
 
+            LastUsedWebServiceUuid.Value = data.LastUsedWebServiceUuid;
+            UseIconNavBar.Value = data.UseIconNavBar ?? false;
             WebServices.Clear();
             for (int i = 0; i < data.WebServices.Length; ++i)
             {
                 WebServices.Add(data.WebServices[i]);
             }
-            LastUsedWebServiceUuid.Value = data.LastUsedWebServiceUuid;
+            
+            if (data.WindowPlacement is not null) WindowPlacement.Value = data.WindowPlacement;
         }
     }
 
@@ -42,16 +49,20 @@ public sealed class Config
     {
         string json = JsonSerializer.Serialize(new Data
         {
+            LastUsedWebServiceUuid = LastUsedWebServiceUuid.Value,
+            UseIconNavBar = UseIconNavBar.Value,
             WebServices = WebServices.ToArray(),
-            LastUsedWebServiceUuid = LastUsedWebServiceUuid.Value
+            WindowPlacement = WindowPlacement.Value
         });
         File.WriteAllText(filepath, json);
     }
 
     internal sealed class Data
     {
-        public WebService[] WebServices { get; set; } = Array.Empty<WebService>();
         public string? LastUsedWebServiceUuid { get; set; }
+        public bool? UseIconNavBar { get; set; }
+        public WebService[] WebServices { get; set; } = Array.Empty<WebService>();
+        public WindowPlacement? WindowPlacement { get; set; } = new();
     }
 }
 
@@ -59,4 +70,5 @@ public sealed class Config
 [JsonSerializable(typeof(Config.Data))]
 [JsonSerializable(typeof(WebService[]))]
 [JsonSerializable(typeof(WebService))]
+[JsonSerializable(typeof(WindowPlacement))]
 internal partial class ConfigJsonContext : JsonSerializerContext { }
