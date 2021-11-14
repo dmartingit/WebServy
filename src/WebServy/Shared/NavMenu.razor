@@ -3,7 +3,7 @@
 
 <ul class="nav flex-column">
     <li class="nav-item text-center">
-        <NavLinkPreventDefault class="nav-link" href="" Match="NavLinkMatch.All" @onclick="() => UpdateLastUsedWebServiceUuid(null)">
+        <NavLinkPreventDefault class="nav-link" href="" Match="NavLinkMatch.All" @onclick="() => SetLastUsedWebServiceUuid(null)">
             <img src="img/logo.svg" width="30" height="30" alt="" hidden="@(AppState.Config.UseIconNavBar.Value == false)">
             <span hidden="@AppState.Config.UseIconNavBar.Value">Home</span>
         </NavLinkPreventDefault>
@@ -11,9 +11,10 @@
     @foreach (WebService webService in AppState.Config.WebServices)
     {
         <li class="nav-item text-center">
-            <NavLinkPreventDefault class="nav-link" href="@($"service/{webService.Uuid}")" @onclick="() => UpdateLastUsedWebServiceUuid(webService)">
+            <NavLinkPreventDefault class="nav-link" href="@($"service/{webService.Uuid}")" @onclick="() => SetLastUsedWebServiceUuid(webService)">
                 <img src="@(webService.IconUrl == string.Empty ? "img/logo.svg" : webService.IconUrl)" width="30" height="30" alt="" hidden="@(AppState.Config.UseIconNavBar.Value == false)">
                 <span hidden="@AppState.Config.UseIconNavBar.Value">@webService.Name</span>
+                <span class="badge badge-danger" hidden="@(webService.UnreadMessagesCount.Value == 0)">@webService.UnreadMessagesCount.Value</span>
             </NavLinkPreventDefault>
         </li>
     }
@@ -22,9 +23,23 @@
 @code {
     protected override void OnInitialized()
     {
-        AppState.Config.WebServices.CollectionChanged += (_, _) => StateHasChanged();
+        foreach(WebService webService in AppState.Config.WebServices)
+        {
+            webService.UnreadMessagesCount.Changed += (_, _) => StateHasChanged();
+        }
+        AppState.Config.WebServices.CollectionChanged += (_, e) =>
+        {
+            if (e.NewItems is not null)
+            {
+                foreach(WebService webService in e.NewItems.Cast<WebService>().ToArray())
+                {
+                    webService.UnreadMessagesCount.Changed += (_, _) => StateHasChanged();
+                }
+            }
+            StateHasChanged();
+        };
         AppState.Config.UseIconNavBar.Changed += (_, _) => StateHasChanged();
     }
 
-    private void UpdateLastUsedWebServiceUuid(WebService? webService) => AppState.Config.LastUsedWebServiceUuid.Value = webService?.Uuid;
+    private void SetLastUsedWebServiceUuid(WebService? webService) => AppState.Config.LastUsedWebServiceUuid.Value = webService?.Uuid;
 }

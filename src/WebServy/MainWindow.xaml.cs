@@ -30,6 +30,12 @@ public partial class MainWindow : Window
         InitializeComponent();
     }
 
+    protected override void OnActivated(EventArgs e)
+    {
+        ClearWebServiceUnreadMessagesCount();
+        base.OnActivated(e);
+    }
+
     protected override void OnSourceInitialized(EventArgs e)
     {
         if (appState.Config.WindowPlacement.Value is WindowPlacement windowPlacement)
@@ -42,7 +48,11 @@ public partial class MainWindow : Window
         }
 
         appState.Config.WebServices.CollectionChanged += (_, e) => UpdateWebViews(e);
-        appState.Config.LastUsedWebServiceUuid.Changed += (_, e) => UpdateLayout(e.Value);
+        appState.Config.LastUsedWebServiceUuid.Changed += (_, e) =>
+        {
+            UpdateLayout(e.Value);
+            ClearWebServiceUnreadMessagesCount();
+        };
         ToastNotificationManagerCompat.OnActivated += ToastNotificationManagerCompatOnActivated;
         UpdateLayout(appState.Config.LastUsedWebServiceUuid.Value);
         base.OnSourceInitialized(e);
@@ -61,7 +71,13 @@ public partial class MainWindow : Window
             if (appState.Services.FirstOrDefault(service => webService.Url.Contains(service.DomainName)) is IService service)
             {
                 webView.CoreWebView2.DOMContentLoaded += async (_, _) => await webView.ExecuteScriptAsync(service.NotificationJavascriptHook);
-                webView.CoreWebView2.WebMessageReceived += (_, e) => new ToastContentBuilder().AddArgument(webService.Uuid).AddText($"{webService.Name}: You have {e.TryGetWebMessageAsString()} unread messages.").Show();
+                webView.CoreWebView2.WebMessageReceived += (_, e) =>
+                {
+                    string unreadMessages = e.TryGetWebMessageAsString();
+                    new ToastContentBuilder().AddArgument(webService.Uuid).AddText($"{webService.Name}: You have {unreadMessages} unread messages.").Show();
+                    int.TryParse(unreadMessages, out int count);
+                    webService.UnreadMessagesCount.Value = count;
+                };
             }
 
             // NOTE(dmartin): Currently Notification Permission Requests are auto-rejected and no event is raised:
@@ -80,6 +96,17 @@ public partial class MainWindow : Window
         };
 
         webViews.Add(webService.Uuid, webView);
+    }
+
+    private void ClearWebServiceUnreadMessagesCount()
+    {
+        if (appState.Config.LastUsedWebServiceUuid.Value is string uuid)
+        {
+            if (appState.Config.WebServices.FirstOrDefault(ws => ws.Uuid == uuid) is WebService webService)
+            {
+                webService.UnreadMessagesCount.Value = 0;
+            }
+        }
     }
 
     private bool OpenUrl(string url)
