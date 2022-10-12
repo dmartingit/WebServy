@@ -8,7 +8,7 @@
             <span hidden="@AppState.Config.UseIconNavBar.Value">Home</span>
         </NavLinkPreventDefault>
     </li>
-    @foreach (WebService webService in AppState.Config.WebServices)
+    @foreach (var webService in AppState.Config.WebServices.Where(ws => ws.Enabled.Value))
     {
         <li class="nav-item text-center">
             <NavLinkPreventDefault class="nav-link" href="@($"service/{webService.Uuid}")" @onclick="() => SetLastUsedWebServiceUuid(webService)">
@@ -23,7 +23,7 @@
 @code {
     protected override void OnInitialized()
     {
-        foreach(WebService webService in AppState.Config.WebServices)
+        foreach(var webService in AppState.Config.WebServices.Where(ws => ws.Enabled.Value))
         {
             webService.UnreadMessagesCount.Changed += (_, _) => StateHasChanged();
         }
@@ -31,7 +31,7 @@
         {
             if (e.NewItems is not null)
             {
-                foreach(WebService webService in e.NewItems.Cast<WebService>().ToArray())
+                foreach(var webService in e.NewItems.Cast<WebService>().Where(ws => ws.Enabled.Value).ToArray())
                 {
                     webService.UnreadMessagesCount.Changed += (_, _) => StateHasChanged();
                 }

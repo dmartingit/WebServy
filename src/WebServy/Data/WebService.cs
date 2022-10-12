@@ -5,6 +5,7 @@ namespace WebServy.Data;
 
 public sealed record WebService
 {
+    public Observable<bool> Enabled { get; set; } = new(true);
     public string IconUrl { get; set; } = string.Empty;
     [Required]
     public string Name { get; set; } = string.Empty;

@@ -31,7 +31,7 @@ public sealed class Config
         {
             using StreamReader reader = new(File.OpenRead(filepath));
             string json = reader.ReadToEnd();
-            Data data = JsonSerializer.Deserialize(json, ConfigJsonContext.Default.Data)!;
+            Data data = JsonSerializer.Deserialize<Data>(json)!;
 
             LastUsedWebServiceUuid.Value = data.LastUsedWebServiceUuid;
             UseIconNavBar.Value = data.UseIconNavBar ?? false;
@@ -65,10 +65,3 @@ public sealed class Config
         public WindowPlacement? WindowPlacement { get; set; } = new();
     }
 }
-
-[JsonSourceGenerationOptions(WriteIndented = true)]
-[JsonSerializable(typeof(Config.Data))]
-[JsonSerializable(typeof(WebService[]))]
-[JsonSerializable(typeof(WebService))]
-[JsonSerializable(typeof(WindowPlacement))]
-internal partial class ConfigJsonContext : JsonSerializerContext { }

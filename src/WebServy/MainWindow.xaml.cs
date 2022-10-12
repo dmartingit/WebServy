@@ -17,13 +17,24 @@ public partial class MainWindow : Window
 
     public MainWindow()
     {
-        foreach (WebService webService in appState.Config.WebServices)
+        foreach (var webService in appState.Config.WebServices)
         {
-            AddWebView(webService);
+            if (webService.Enabled.Value) AddWebView(webService);
+            webService.Enabled.Changed += (_, e) =>
+            {
+                if (e.Value)
+                {
+                    AddWebView(webService);
+                }
+                else
+                {
+                    webViews.Remove(webService.Uuid);
+                }
+            };
         }
 
         var serviceCollection = new ServiceCollection();
-        serviceCollection.AddBlazorWebView();
+        serviceCollection.AddWpfBlazorWebView();
         serviceCollection.AddSingleton(appState);
         Resources.Add("services", serviceCollection.BuildServiceProvider());
 
@@ -52,6 +63,7 @@ public partial class MainWindow : Window
         {
             UpdateLayout(e.Value);
             ClearWebServiceUnreadMessagesCount();
+            ToastNotificationManagerCompat.History.Clear();
         };
         ToastNotificationManagerCompat.OnActivated += ToastNotificationManagerCompatOnActivated;
         UpdateLayout(appState.Config.LastUsedWebServiceUuid.Value);
@@ -61,7 +73,7 @@ public partial class MainWindow : Window
     private void AddWebView(WebService webService)
     {
         WebView2 webView = new();
-        webView.Source = new(webService.Url);
+        webView.Source = new Uri(webService.Url);
 
         // NOTE(dmartin): Prevent flashing when switching services, because most web services have a defaulted dark theme.
         webView.DefaultBackgroundColor = System.Drawing.Color.FromArgb(0xff, 0x22, 0x22, 0x22);
@@ -73,9 +85,9 @@ public partial class MainWindow : Window
                 webView.CoreWebView2.DOMContentLoaded += async (_, _) => await webView.ExecuteScriptAsync(service.NotificationJavascriptHook);
                 webView.CoreWebView2.WebMessageReceived += (_, e) =>
                 {
-                    string unreadMessages = e.TryGetWebMessageAsString();
+                    var unreadMessages = e.TryGetWebMessageAsString();
                     new ToastContentBuilder().AddArgument(webService.Uuid).AddText($"{webService.Name}: You have {unreadMessages} unread messages.").Show();
-                    int.TryParse(unreadMessages, out int count);
+                    int.TryParse(unreadMessages, out var count);
                     webService.UnreadMessagesCount.Value = count;
                 };
             }
@@ -147,8 +159,9 @@ public partial class MainWindow : Window
         {
             grid.ColumnDefinitions[0].Width = new(100);
             grid.ColumnDefinitions[1].Width = new(1, GridUnitType.Star);
-            WebService webService = appState.Config.WebServices.Single(ws => ws.Uuid == webServiceUuid);
-            if (webViews.TryGetValue(webService.Uuid, out WebView2? webView))
+            var webService = appState.Config.WebServices.Single(ws => ws.Uuid == webServiceUuid);
+            if (!webService.Enabled.Value) return;
+            if (webViews.TryGetValue(webService.Uuid, out var webView))
             {
                 webViewContentControl.Content = webView;
             }
@@ -179,7 +192,18 @@ public partial class MainWindow : Window
         {
             foreach (WebService webService in e.NewItems)
             {
-                AddWebView(webService);
+                if (webService.Enabled.Value) AddWebView(webService);
+                webService.Enabled.Changed += (_, e) =>
+                {
+                    if (e.Value)
+                    {
+                        AddWebView(webService);
+                    }
+                    else
+                    {
+                        webViews.Remove(webService.Uuid);
+                    }
+                };
             }
         }
     }

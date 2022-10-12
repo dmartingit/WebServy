@@ -4,7 +4,7 @@
 
 <div class="container">
     <h1>Edit</h1>
-    @foreach (WebService webService in webServices)
+    @foreach (var webService in webServices)
     {
         <EditForm Model="@webService" OnValidSubmit="@(() => EditWebService(webService))">
             <DataAnnotationsValidator />
@@ -14,6 +14,7 @@
                 <InputText class="form-control" placeholder="Service Name*" @bind-Value="webService.Name" />
                 <InputText class="form-control" placeholder="Service Url*" @bind-Value="webService.Url" />
                 <InputText class="form-control" placeholder="Service Icon Url" @bind-Value="webService.IconUrl" />
+                <InputCheckbox class="form-control" @bind-Value="webService.Enabled.Value" />
                 <div class="input-group-append">
                     <button class="btn btn-success" type="submit">Save</button>
                 </div>
@@ -23,14 +24,15 @@
 </div>
 
 @code {
-    private List<WebService> webServices = new();
+    private readonly List<WebService> webServices = new();
 
     protected override void OnInitialized()
     {
-        foreach (WebService webService in AppState.Config.WebServices)
+        foreach (var webService in AppState.Config.WebServices)
         {
-            webServices.Add(new()
-                {
+            webServices.Add(new WebService
+            {
+                    Enabled = new Observable<bool>(webService.Enabled.Value),
                     IconUrl = webService.IconUrl,
                     Name = webService.Name,
                     Url = webService.Url,
@@ -41,7 +43,8 @@
 
     private void EditWebService(WebService webService)
     {
-        WebService oldWebService = AppState.Config.WebServices.First(ws => ws.Uuid == webService.Uuid);
+        var oldWebService = AppState.Config.WebServices.First(ws => ws.Uuid == webService.Uuid);
+        oldWebService.Enabled.Value = webService.Enabled.Value;
         oldWebService.IconUrl = webService.IconUrl;
         oldWebService.Name = webService.Name;
         oldWebService.Url = webService.Url;

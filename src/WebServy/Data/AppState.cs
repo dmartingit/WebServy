@@ -5,7 +5,7 @@ namespace WebServy.Data;
 
 public class AppState
 {
-    private static string ConfigFilepath = Path.Combine(Environment.CurrentDirectory, ".wsconfig");
+    private static string ConfigFilepath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ".wsconfig");
 
     public Config Config { get; init; } = new(ConfigFilepath);
 
